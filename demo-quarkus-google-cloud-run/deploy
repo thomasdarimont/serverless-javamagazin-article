@@ -1,0 +1,61 @@
+#!/bin/bash
+
+CREATE_PROJECT=true
+PROJECT_PREFIX=tdlabs
+REGION=europe-west1
+PROJECT_ID=$PROJECT_PREFIX-gcp-quarkus-demo
+SERVICE_NAME=$PROJECT_PREFIX-quarkus-demo-google-cloud-run
+
+createProject() {
+    echo "Setting up $PROJECT_ID"
+    gcloud projects create --no-user-output-enabled "$PROJECT_ID"
+    gcloud config set project --no-user-output-enabled "$PROJECT_ID"
+    gcloud config set run/region --no-user-output-enabled "$REGION"
+    gcloud beta billing accounts list --format="table['box'](displayName,name)"
+
+    # It reads the account ID
+    echo "> Enter the billing account ID you want to use:"
+    read -r ACCOUNT_ID
+
+    echo "Enabling GCP services"
+    gcloud beta billing projects link --no-user-output-enabled "$PROJECT_ID" --billing-account="$ACCOUNT_ID"
+    gcloud services enable --no-user-output-enabled cloudbuild.googleapis.com
+    gcloud services enable --no-user-output-enabled run.googleapis.com
+
+    PROJECT_NUMBER=$(gcloud beta projects describe "$PROJECT_ID" | grep 'projectNumber: ' | cut -d\   -f2 | tr -d \')
+    gcloud projects add-iam-policy-binding --no-user-output-enabled "$PROJECT_ID" --member serviceAccount:"$PROJECT_NUMBER"@cloudbuild.gserviceaccount.com --role roles/run.admin
+    gcloud projects add-iam-policy-binding --no-user-output-enabled "$PROJECT_ID" --member serviceAccount:"$PROJECT_NUMBER"@cloudbuild.gserviceaccount.com --role roles/iam.serviceAccountUser
+}
+
+buildAndRun() {
+    echo "Building $SERVICE_NAME"
+    gcloud config set project --no-user-output-enabled "$PROJECT_ID"
+    gcloud config set run/platform managed
+    gcloud config set run/region "$REGION"
+
+    gcloud builds submit --no-user-output-enabled --config cloudbuild.yaml .
+
+    echo "You can access your application at:"
+    gcloud run services describe "$SERVICE_NAME"  --region="$REGION" --format="get(domain)"
+}
+
+deploy() {
+    if [ "$CREATE_PROJECT" = true ] ; then
+        createProject
+    fi
+
+    buildAndRun
+}
+
+printInstructions() {
+    echo "========================================================================"
+    echo -e "In order to deploy this project, you need \e[36mgcloud\e[0m set in your PATH."
+    echo -e "You can download it from \e[36;4mhttps://cloud.google.com/sdk\e[0m"
+    echo "========================================================================"
+}
+
+if [[ $(command -v gcloud) ]]; then
+    deploy
+else
+    printInstructions
+fi

@@ -1,0 +1,10 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "",
+    "FUNCTIONS_WORKER_RUNTIME": "java",
+    "MAIN_CLASS":"demo.AzureFunctionApp",
+    "JAVA_OPTS": "-Djava.net.preferIPv4Stack=true -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:8898",
+    "HTTP_PLATFORM_DEBUG_PORT": 8898
+  }
+}
